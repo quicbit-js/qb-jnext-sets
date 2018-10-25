@@ -19,65 +19,69 @@
 
 var hmap = require('qb-hmap')
 
-function err (msg) { throw Error(msg) }
-
-function key_hash (args) {
-    var ps = args[0]
-    var src = ps.src
-    var lim = ps.klim - 1                       // ignore quotes
-    var h = 0
-    for (var i = ps.koff + 1; i<lim; i++) {
-        h = 0x7FFFFFFF & ((h * 33) ^ src[i])    // xor by berstein
-    }
-    return h
+function err(msg) {
+    throw Error(msg)
 }
 
-function key_equal (key, args) {
-    var ps = args[0]
-    var len = ps.klim - ps.koff - 2             // ignore quotes
+var PS_KEY_FNS = {
+    hash_fn: function (args) {
+        var ps = args[0]
+        var src = ps.src
+        var lim = ps.klim - 1                       // ignore quotes
+        var h = 0
+        for (var i = ps.koff + 1; i < lim; i++) {
+            h = 0x7FFFFFFF & ((h * 33) ^ src[i])    // xor by berstein
+        }
+        return h
+    },
+    equal_fn: function (key, args) {
+        var ps = args[0]
+        var len = ps.klim - ps.koff - 2             // ignore quotes
 
-    len >= 0 || err('no key')
+        len >= 0 || err('no key')
 
-    var ksrc = key.src
-    if (ksrc.length !== len) { return false }
-
-    var psrc = ps.src
-    var poff = ps.koff + 1
-    for (var i = 0; i < len; i++) {
-        if (ksrc[i] !== psrc[i + poff]) {
+        var ksrc = key.src
+        if (ksrc.length !== len) {
             return false
         }
-    }
-    return true
+
+        var psrc = ps.src
+        var poff = ps.koff + 1
+        for (var i = 0; i < len; i++) {
+            if (ksrc[i] !== psrc[i + poff]) {
+                return false
+            }
+        }
+        return true
+    },
+    create_fn: function (hash, col, prev, args) {
+        if (prev) {
+            return prev
+        }
+        var ps = args[0]
+        var poff = ps.koff + 1              // ignore quotes
+        var psrc = ps.src
+        var len = ps.klim - ps.koff - 2     // ignore quotes
+        len >= 0 || err('no key')
+        var src = new Uint8Array(len)
+        for (var i = 0; i < len; i++) {
+            src[i] = psrc[i + poff]
+        }
+        return new Buf(src, hash, col)
+    },
+    str2args_fn: function (s) {
+        var b = new Buffer('"' + s + '"')
+        return [{src: b, koff: 0, klim: b.length}]
+    },
 }
 
-function key_create (hash, col, prev, args) {
-    if (prev) {
-        return prev
-    }
-    var ps = args[0]
-    var poff = ps.koff + 1              // ignore quotes
-    var psrc = ps.src
-    var len = ps.klim - ps.koff - 2     // ignore quotes
-    len >= 0 || err('no key')
-    var src = new Uint8Array(len)
-    for (var i = 0; i < len; i++) {
-        src[i] = psrc[i + poff]
-    }
-    return new Buf(src, hash, col)
-}
-
-function str2args (s) {
-    var b = new Buffer('"' + s + '"')
-    return [ { src: b, koff: 0, klim: b.length } ]
-}
-
-function Buf (src, hash, col) {
+function Buf(src, hash, col) {
     this.src = src
     this.hash = hash
     this.col = col
     this.str = null
 }
+
 Buf.prototype = {
     constructor: Buf,
     to_obj: function () {
@@ -88,16 +92,9 @@ Buf.prototype = {
     },
     toString: function () {
         return this.to_obj()
-    }
+    },
 }
 
 module.exports = {
-    create: function () {
-        return hmap.set({
-            hash_fn: key_hash,
-            equal_fn: key_equal,
-            create_fn: key_create,
-            str2args_fn: str2args
-        })
-    }
+    create: function () { return hmap.set(PS_KEY_FNS) },
 }
