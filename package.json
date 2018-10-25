@@ -7,7 +7,7 @@
   "email": "support@quicbit.com",
   "repository": "quicbit-js/qb-jnext-sets",
   "dependencies": {
-    "qb-hmap": "^1.1.0"
+    "qb-hmap": "file:../qb-hmap"
   },
   "devDependencies": {
     "tape": "^4.8.0",

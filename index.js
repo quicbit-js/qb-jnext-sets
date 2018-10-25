@@ -19,6 +19,11 @@
 
 var hmap = require('qb-hmap')
 
+// used with ps argument to indicate store of key or value
+var KEY = 0x1
+var VAL = 0x2
+
+function err (msg) { throw Error(msg) }
 
 function Buf (src, off, lim, hash, col) {
     var len = lim - off
@@ -44,10 +49,6 @@ Buf.prototype = {
     },
 }
 
-var PS_VAL_FNS = {
-
-}
-
 function hash (src, off, lim) {
     for (var i = off, h = 0; i < lim; i++) {
         h = 0x7FFFFFFF & ((h * 33) ^ src[i])    // xor by berstein
@@ -68,30 +69,44 @@ function src_equal (src1, src2, off, lim) {
     return true
 }
 
-var PS_KEY_FNS = {
+var PS_FNS = {
     hash_fn: function (args) {
         var ps = args[0]
-        return hash(ps.src, ps.koff + 1, ps.klim - 1)
+        switch (args[1]) {
+            case KEY: return hash(ps.src, ps.koff + 1, ps.klim - 1)
+            case VAL: return hash(ps.src, ps.voff + 1, ps.vlim - 1)
+            default: err('missing argument: key-or-val')
+        }
     },
-    equal_fn: function (key, args) {
+    equal_fn: function (prev, args) {
         var ps = args[0]
-        return src_equal(key.src, ps.src, ps.koff + 1, ps.klim -1)
+        switch (args[1]) {
+            case KEY: return src_equal(prev.src, ps.src, ps.koff + 1, ps.klim - 1)
+            case VAL: return src_equal(prev.src, ps.src, ps.voff + 1, ps.vlim - 1)
+            // default arg is checked in hash_fn prior to equal()
+        }
     },
     create_fn: function (hash, col, prev, args) {
         if (prev) {
             return prev
         }
         var ps = args[0]
-        return new Buf(ps.src, ps.koff + 1, ps.klim -1, hash, col)
+        switch (args[1]) {
+            case KEY: return new Buf(ps.src, ps.koff + 1, ps.klim -1, hash, col)
+            case VAL: return new Buf(ps.src, ps.voff + 1, ps.vlim -1, hash, col)
+            // default arg is checked in hash_fn prior to create()
+        }
     },
     str2args_fn: function (s) {
         var b = new Buffer('"' + s + '"')
-        return [{ src: b, koff: 0, klim: b.length }]
+        return [{ src: b, voff: 0, vlim: b.length }, VAL]
     },
 }
 
 module.exports = {
+    KEY: 0x1,
+    VAL: 0x2,
     create: function () {
-        return hmap.set(PS_KEY_FNS)
+        return hmap.set(PS_FNS)
     },
 }

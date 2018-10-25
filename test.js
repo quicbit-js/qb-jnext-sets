@@ -15,12 +15,15 @@
 // OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 var test = require('test-kit').tape()
-var jtok_keyset = require('.')
+var jn_set = require('.')
+var KEY = jn_set.KEY
+var VAL = jn_set.VAL
 
 // test key-cache
 
+function err (msg) { throw Error(msg) }
 // create parse structure 'ps' like that used by qb-json-tok
-function str2ps (s, sep) {
+function str2ps (s, sep, k_or_v) {
     // add quotes to string items (like in JSON)
     var parts = s.split(sep)
     var src = new Buffer('"' + parts.join('"' + sep + '"') + '"')
@@ -31,22 +34,27 @@ function str2ps (s, sep) {
     var ret = []
     while (i < lim) {
         while (i < lim && src[i] !== sep_code) { i++ }
-        ret.push({src: src, koff: off, klim: i})
+        switch (k_or_v) {
+            case KEY: ret.push({src: src, koff: off, klim: i}); break
+            case VAL: ret.push({src: src, voff: off, vlim: i}); break
+            default: err('missing key/val argument')
+        }
+
         off = ++i
     }
     return ret
 }
 
-test('key-cache buf.toString', function (t) {
-    var cache = jtok_keyset.create()
-    var ps = { src: new Buffer('xhi there"'), koff: 0, klim: 7 }
-    var buf = cache.put_create(ps)
+test('buf.toString', function (t) {
+    var cache = jn_set.create()
+    var ps = { src: new Buffer('"hi there"'), koff: 0, klim: 7 }
+    var buf = cache.put_create(ps, KEY)
     t.same(buf.toString(), 'hi th')
     t.same(buf.toString(), 'hi th')     // call twice tests cache
     t.end()
 })
 
-test('key-cache put_create', function (t) {
+test('put_create KEY', function (t) {
     t.table_assert([
         [ 'input',                                 'exp' ],
         [ 'a',                                     [ 'a' ] ],
@@ -57,30 +65,50 @@ test('key-cache put_create', function (t) {
         [ '3s,55,3s,55',                           [ '3s', '55' ] ],          // collision
         [ 'd-loading-indicator,reactlet-calendar', [ 'd-loading-indicator', 'reactlet-calendar' ] ],
     ], function (input) {
-        var cache = jtok_keyset.create()
-        str2ps(input, ',').forEach (function (ps) {
-            cache.put_create(ps)
+        var cache = jn_set.create()
+        str2ps(input, ',', KEY).forEach (function (ps) {
+            cache.put_create(ps, KEY)
         })
         return cache.to_obj()
     })
 })
 
-test('key-cache put_s', function (t) {
+test('put_create VAL', function (t) {
+    t.table_assert([
+        [ 'input',                                 'exp' ],
+        [ 'a',                                     [ 'a' ] ],
+        [ 'a,b,c',                                 [ 'a', 'b', 'c' ] ],
+        [ 'a,b,c,a',                               [ 'a', 'b', 'c' ] ],
+        [ '55,b,3s',                               [ '55', 'b', '3s' ] ],     // collision
+        [ '3s,55,3s,55,4T',                        [ '3s', '55', '4T' ] ],    // collision
+        [ '3s,55,3s,55',                           [ '3s', '55' ] ],          // collision
+        [ 'd-loading-indicator,reactlet-calendar', [ 'd-loading-indicator', 'reactlet-calendar' ] ],
+    ], function (input) {
+        var cache = jn_set.create()
+        str2ps(input, ',', VAL).forEach (function (ps) {
+            cache.put_create(ps, VAL)
+        })
+        return cache.to_obj()
+    })
+})
+
+
+test('put_s', function (t) {
     t.table_assert([
         [ 'input',                                      'exp' ],
         [ 'a',                                          ['a'] ],
         [ '3s,55,3s,55,4T',                             [ '3s', '55', '4T' ] ],    // collision
         [ 'd-loading-indicator,reactlet-calendar',      [ 'd-loading-indicator', 'reactlet-calendar' ] ],    // collision
     ], function (input) {
-        var cache = jtok_keyset.create()
+        var set1 = jn_set.create()
         input.split(',').forEach (function (s) {
-            cache.put_s(s)
+            set1.put_s(s)
         })
-        return cache.to_obj()
+        return set1.to_obj()
     })
 })
 
-test('key-cache set', function (t) {
+test('new set', function (t) {
     t.table_assert([
         [ 'input',                                 'exp' ],
         [ 'a',                                     [ 1, ['a'] ] ],
@@ -92,15 +120,20 @@ test('key-cache set', function (t) {
         [ '3s,55,3s,55,4T',                        [ 3, ['3s', '55', '4T'] ] ],
         [ 'd-loading-indicator,reactlet-calendar', [ 2, ['d-loading-indicator', 'reactlet-calendar'] ] ],
     ], function (input) {
-        var key_set = jtok_keyset.create()
-        var hset = key_set.hset()
-        str2ps(input, ',').forEach (function (ps) {
-            var buf = key_set.put_create(ps)
+        var set1 = jn_set.create()
+        var hset = set1.hset()
+        str2ps(input, ',', KEY).forEach (function (ps) {
+            var buf = set1.put_create(ps, KEY)
             hset.put(buf, 1)
-
         })
 
         return [hset.length, hset.to_obj()]
     })
 })
 
+test('errors', function (t) {
+    var set1 = jn_set.create()
+    var ps = str2ps('abc', ',', KEY)[0]
+    t.throws(function () {set1.put_create(ps)}, /missing argument/)
+    t.end()
+})
