@@ -1,7 +1,7 @@
 {
   "name": "qb-jnext-sets",
   "version": "1.0.0",
-  "description": "qb-jnext-sets",
+  "description": "Light weight buffer sets for working with qb-json-next",
   "homepage": "https://github.com/quicbit-js/qb-jnext-sets",
   "url": "https://github.com/quicbit-js/qb-jnext-sets/issues",
   "email": "support@quicbit.com",
