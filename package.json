@@ -1,0 +1,36 @@
+{
+  "name": "qb-jnext-sets",
+  "version": "1.0.0",
+  "description": "qb-jnext-sets",
+  "homepage": "https://github.com/quicbit-js/qb-jnext-sets",
+  "url": "https://github.com/quicbit-js/qb-jnext-sets/issues",
+  "email": "support@quicbit.com",
+  "repository": "quicbit-js/qb-jnext-sets",
+  "dependencies": {
+    "qb-hmap": "^1.1.0"
+  },
+  "devDependencies": {
+    "tape": "^4.8.0",
+    "test-kit": "^2.7.2"
+  },
+  "scripts": {
+    "test": "tape test.js",
+    "cov": "tap --coverage-report=html test.js"
+  },
+  "keywords": [
+    "fast",
+    "compact",
+    "minimal",
+    "qb",
+    "qb1",
+    "quicbit",
+    "data",
+    "performance"
+  ],
+  "files": [
+    "index.js",
+    "test.js"
+  ],
+  "author": "Matthew Voss",
+  "license": "ISC"
+}
