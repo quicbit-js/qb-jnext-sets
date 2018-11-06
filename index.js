@@ -25,7 +25,9 @@ var VAL = 0x2
 
 function err (msg) { throw Error(msg) }
 
-function Buf (src, off, lim, hash, col) {
+// xtra allows custom properties to be initialized in Buf objects [ name, value, name, value, ... ]
+// e.g.  hmap.put_create(ps, KEY, [ 'weight', 0, 'id', -1 ])
+function Buf (src, off, lim, hash, col, xtra) {
     var len = lim - off
     var nsrc = new Uint8Array(len)
     for (var i = 0; i < len; i++) { nsrc[i] = src[off + i] }
@@ -34,6 +36,11 @@ function Buf (src, off, lim, hash, col) {
     this.hash = hash
     this.col = col
     this.str = null
+    if (xtra) {
+        for (i =0; i < xtra.length; i+=2) {
+            this[xtra[i]] = this[xtra[i+1]]
+        }
+    }
 }
 
 Buf.prototype = {
@@ -70,30 +77,32 @@ function src_equal (src1, src2, off, lim) {
 }
 
 var PS_FNS = {
-    hash_fn: function (args) {
-        var ps = args[0]
-        switch (args[1]) {
+    hash_fn: function (pc_args) {
+        var ps = pc_args[0]
+        switch (pc_args[1]) {
             case KEY: return hash(ps.src, ps.koff + 1, ps.klim - 1)
             case VAL: return hash(ps.src, ps.voff + 1, ps.vlim - 1)
             default: err('missing argument: key-or-val')
         }
     },
-    equal_fn: function (prev, args) {
-        var ps = args[0]
-        switch (args[1]) {
+    equal_fn: function (prev, pc_args) {
+        var ps = pc_args[0]
+        switch (pc_args[1]) {
             case KEY: return src_equal(prev.src, ps.src, ps.koff + 1, ps.klim - 1)
             case VAL: return src_equal(prev.src, ps.src, ps.voff + 1, ps.vlim - 1)
             // default arg is checked in hash_fn prior to equal()
         }
     },
-    create_fn: function (hash, col, prev, args) {
+    create_fn: function (hash, col, prev, pc_args) {
         if (prev) {
             return prev
         }
-        var ps = args[0]
-        switch (args[1]) {
-            case KEY: return new Buf(ps.src, ps.koff + 1, ps.klim -1, hash, col)
-            case VAL: return new Buf(ps.src, ps.voff + 1, ps.vlim -1, hash, col)
+        var ps = pc_args[0]
+        var keyval = pc_args[1]
+        var xtra = pc_args[2]
+        switch (keyval) {
+            case KEY: return new Buf(ps.src, ps.koff + 1, ps.klim -1, hash, col, xtra)
+            case VAL: return new Buf(ps.src, ps.voff + 1, ps.vlim -1, hash, col, xtra)
             // default arg is checked in hash_fn prior to create()
         }
     },
