@@ -18,32 +18,9 @@ var test = require('test-kit').tape()
 var jn_set = require('.')
 var KEY = jn_set.KEY
 var VAL = jn_set.VAL
+var str2ps = jn_set.str2ps
 
 // test key-cache
-
-function err (msg) { throw Error(msg) }
-// create parse structure 'ps' like that used by qb-json-tok
-function str2ps (s, sep, k_or_v) {
-    // add quotes to string items (like in JSON)
-    var parts = s.split(sep)
-    var src = new Buffer('"' + parts.join('"' + sep + '"') + '"')
-    var sep_code = sep.charCodeAt(0)
-    var lim = src.length
-    var off = 0
-    var i = 0
-    var ret = []
-    while (i < lim) {
-        while (i < lim && src[i] !== sep_code) { i++ }
-        switch (k_or_v) {
-            case KEY: ret.push({src: src, koff: off, klim: i}); break
-            case VAL: ret.push({src: src, voff: off, vlim: i}); break
-            default: err('missing key/val argument')
-        }
-
-        off = ++i
-    }
-    return ret
-}
 
 test('buf.toString', function (t) {
     var cache = jn_set.create()
