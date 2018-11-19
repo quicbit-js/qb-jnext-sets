@@ -38,7 +38,7 @@ function Buf (src, off, lim, hash, col, xtra) {
     this.str = null
     if (xtra) {
         for (i =0; i < xtra.length; i+=2) {
-            this[xtra[i]] = this[xtra[i+1]]
+            this[xtra[i]] = xtra[i+1]
         }
     }
 }
@@ -79,7 +79,7 @@ function src_equal (src1, src2, off, lim) {
 var PS_FNS = {
     hash_fn: function (pc_args) {
         var ps = pc_args[0]
-        switch (pc_args[1]) {
+        switch (ps.k_or_v) {
             case KEY: return hash(ps.src, ps.koff + 1, ps.klim - 1)
             case VAL: return hash(ps.src, ps.voff + 1, ps.vlim - 1)
             default: err('missing argument: key-or-val')
@@ -87,33 +87,31 @@ var PS_FNS = {
     },
     equal_fn: function (prev, pc_args) {
         var ps = pc_args[0]
-        switch (pc_args[1]) {
+        switch (ps.k_or_v) {
             case KEY: return src_equal(prev.src, ps.src, ps.koff + 1, ps.klim - 1)
             case VAL: return src_equal(prev.src, ps.src, ps.voff + 1, ps.vlim - 1)
             // default arg is checked in hash_fn prior to equal()
         }
     },
-    create_fn: function (hash, col, prev, pc_args) {
+    put_merge_fn: function (hash, col, prev, pc_args) {
         if (prev) {
             return prev
         }
         var ps = pc_args[0]
-        var keyval = pc_args[1]
-        var xtra = pc_args[2]
-        switch (keyval) {
-            case KEY: return new Buf(ps.src, ps.koff + 1, ps.klim -1, hash, col, xtra)
-            case VAL: return new Buf(ps.src, ps.voff + 1, ps.vlim -1, hash, col, xtra)
+        switch (ps.k_or_v) {
+            case KEY: return new Buf(ps.src, ps.koff + 1, ps.klim -1, hash, col, ps.xtra)
+            case VAL: return new Buf(ps.src, ps.voff + 1, ps.vlim -1, hash, col, ps.xtra)
             // default arg is checked in hash_fn prior to create()
         }
     },
-    str2args_fn: function (s) {
+    str2val_fn: function (s) {
         var b = new Buffer('"' + s + '"')
-        return [{ src: b, voff: 0, vlim: b.length }, VAL]
+        return [{ src: b, voff: 0, vlim: b.length, k_or_v: VAL }]
     },
 }
 
 // create parse structure 'ps' like that used by qb-json-tok (for testing)
-function str2ps (s, sep, k_or_v) {
+function str2ps (s, sep, k_or_v, xtra) {
     // add quotes to string items (like in JSON)
     var parts = s.split(sep)
     var src = new Buffer('"' + parts.join('"' + sep + '"') + '"')
@@ -125,8 +123,8 @@ function str2ps (s, sep, k_or_v) {
     while (i < lim) {
         while (i < lim && src[i] !== sep_code) { i++ }
         switch (k_or_v) {
-            case KEY: ret.push({src: src, koff: off, klim: i}); break
-            case VAL: ret.push({src: src, voff: off, vlim: i}); break
+            case KEY: ret.push({src: src, koff: off, klim: i, k_or_v: KEY, xtra: xtra}); break
+            case VAL: ret.push({src: src, voff: off, vlim: i, k_or_v: VAL, xtra: xtra}); break
             default: err('missing key/val argument')
         }
 

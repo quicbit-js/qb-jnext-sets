@@ -24,8 +24,8 @@ var str2ps = jn_set.str2ps
 
 test('buf.toString', function (t) {
     var cache = jn_set.create()
-    var ps = { src: new Buffer('"hi there"'), koff: 0, klim: 7 }
-    var buf = cache.put_create(ps, KEY)
+    var ps = { src: new Buffer('"hi there"'), koff: 0, klim: 7, k_or_v: KEY }
+    var buf = cache.put_create(ps)
     t.same(buf.toString(), 'hi th')
     t.same(buf.toString(), 'hi th')     // call twice tests cache
     t.end()
@@ -69,6 +69,30 @@ test('put_create VAL', function (t) {
     })
 })
 
+test('put_create xtra', function (t) {
+    t.table_assert([
+        [ 'input',                                 'xtra',    'exp' ],
+        [ 'a',                                     ['z', 1],   { a: { z: 1 } } ],
+        [ 'a,b,c',                                 null,       { a: {}, b: {}, c: {} } ],
+        [ 'a,b,c,a',                               ['q',2],    { a: { q: 2 }, b: { q: 2 }, c: { q: 2 } } ],
+    ], function (input, xtra) {
+        var cache = jn_set.create()
+        str2ps(input, ',', VAL, xtra).forEach (function (ps) {
+            cache.put_create(ps)
+        })
+        var ret = {}
+        cache.for_val(function (v) {
+            var vals = {}
+            if (xtra) {
+                for (var i=0; i<xtra.length; i+=2) {
+                    vals[xtra[i]] = v[xtra[i]]
+                }
+            }
+            ret[v.toString()] = vals
+        })
+        return ret
+    })
+})
 
 test('put_s', function (t) {
     t.table_assert([
@@ -111,6 +135,7 @@ test('new set', function (t) {
 test('errors', function (t) {
     var set1 = jn_set.create()
     var ps = str2ps('abc', ',', KEY)[0]
+    ps.k_or_v = null
     t.throws(function () {set1.put_create(ps)}, /missing argument/)
     t.end()
 })
